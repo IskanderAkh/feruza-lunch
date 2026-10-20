@@ -1,0 +1,23 @@
+{
+  "name": "lunch-app-client",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node node_modules/vite/bin/vite.js",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "preview": "node node_modules/vite/bin/vite.js preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  },
+  "overrides": {
+    "esbuild": "npm:esbuild-wasm@0.21.5",
+    "rollup": "npm:@rollup/wasm-node@4.52.4"
+  }
+}
