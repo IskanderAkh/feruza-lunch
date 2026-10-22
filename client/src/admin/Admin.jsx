@@ -4,12 +4,14 @@ import Payments from './Payments.jsx';
 import Debts from './Debts.jsx';
 import MenuEditor from './MenuEditor.jsx';
 import Settings from './Settings.jsx';
+import News from './News.jsx';
 
 const SECTIONS = [
   ['orders', 'Заказы', Orders],
   ['payments', 'Оплаты', Payments],
   ['debts', 'Долги', Debts],
   ['menu', 'Меню', MenuEditor],
+  ['news', 'Объявления', News],
   ['settings', 'Настройки', Settings],
 ];
 

@@ -14,6 +14,19 @@ export function when(date) {
   return `${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}, ${time}`;
 }
 
+// Даты заказов — строки «YYYY-MM-DD» по времени повара (сервер присылает today), без часовых поясов
+export function addDays(date, n) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+export function dayLabel(date, today) {
+  if (date === today) return 'Сегодня';
+  if (date === addDays(today, 1)) return 'Завтра';
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 // Уменьшаем фото перед загрузкой, чтобы меню грузилось быстро
 export async function resizeImage(file, max = 1000) {
   const bmp = await createImageBitmap(file);

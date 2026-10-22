@@ -1,21 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { useMe, when, plural } from '../context.js';
-import { Loader, Empty, Badge, ErrorNote } from '../components.jsx';
+import { useMe, when, plural, addDays, dayLabel } from '../context.js';
+import { Loader, Empty, Badge, ErrorNote, DayPicker } from '../components.jsx';
 import { haptic, showAlert } from '../tg.js';
 
 export default function Orders() {
-  const { fmt } = useMe();
-  const [scope, setScope] = useState('today');
+  const { me, fmt } = useMe();
+  const [scope, setScope] = useState('day');
+  const [date, setDate] = useState(me.today);
+  const [counts, setCounts] = useState({});
   const [orders, setOrders] = useState(null);
   const [error, setError] = useState(null);
 
   const load = () => {
     setError(null);
     setOrders(null);
-    api.get(`/admin/orders?scope=${scope}`).then(setOrders).catch((e) => setError(e.message));
+    api.get(`/admin/orders?scope=${scope}&date=${date}`).then(setOrders).catch((e) => setError(e.message));
+    api.get('/admin/orders/days')
+      .then((list) => setCounts(Object.fromEntries(list.map((d) => [d.date, d.count]))))
+      .catch(() => {});
   };
-  useEffect(load, [scope]);
+  useEffect(load, [scope, date]);
+
+  // Сегодня и завтра — всегда, дальше — только дни, на которые есть предзаказы
+  const days = [...new Set([me.today, addDays(me.today, 1), ...Object.keys(counts)])].filter((d) => d >= me.today).sort();
+  const dayName = dayLabel(date, me.today).toLowerCase();
 
   const replace = (o) => setOrders((list) => list.map((x) => (x.id === o.id ? { ...x, ...o, user: x.user } : x)));
 
@@ -43,17 +52,19 @@ export default function Orders() {
   return (
     <>
       <div className="toggle">
-        <button className={scope === 'today' ? 'active' : ''} onClick={() => setScope('today')}>Сегодня</button>
+        <button className={scope === 'day' ? 'active' : ''} onClick={() => setScope('day')}>По дням</button>
         <button className={scope === 'open' ? 'active' : ''} onClick={() => setScope('open')}>Требуют внимания</button>
       </div>
+
+      {scope === 'day' && <DayPicker days={days} value={date} onChange={setDate} today={me.today} counts={counts} />}
 
       <ErrorNote error={error} onRetry={load} />
       {!orders && !error && <Loader />}
 
-      {summary && scope === 'today' && summary.count > 0 && (
+      {summary && scope === 'day' && summary.count > 0 && (
         <section className="card cook">
           <div className="cook-head">
-            <span>{plural(summary.count, ['заказ', 'заказа', 'заказов'])}</span>
+            <span>{dayLabel(date, me.today)}: {plural(summary.count, ['заказ', 'заказа', 'заказов'])}</span>
             <strong className="num">{fmt(summary.total)}</strong>
           </div>
           <ul className="cook-list">
@@ -69,19 +80,19 @@ export default function Orders() {
       )}
 
       {orders && !orders.length && (
-        <Empty title={scope === 'today' ? 'Сегодня заказов пока нет' : 'Всё обработано'}>
-          {scope === 'today' ? 'Новые заказы появятся здесь, а бот пришлёт уведомление.' : 'Нет новых заказов и блюд без цены.'}
+        <Empty title={scope === 'day' ? `На ${dayName} заказов пока нет` : 'Всё обработано'}>
+          {scope === 'day' ? 'Новые заказы появятся здесь, а бот пришлёт уведомление.' : 'Нет новых заказов и блюд без цены.'}
         </Empty>
       )}
 
       <ul className="list">
-        {orders?.map((o) => <OrderCard key={o.id} order={o} onChange={replace} fmt={fmt} />)}
+        {orders?.map((o) => <OrderCard key={o.id} order={o} onChange={replace} fmt={fmt} today={me.today} showDate={scope === 'open'} />)}
       </ul>
     </>
   );
 }
 
-function OrderCard({ order: o, onChange, fmt }) {
+function OrderCard({ order: o, onChange, fmt, today, showDate }) {
   const [price, setPrice] = useState(o.customPrice ? String(o.customPrice) : '');
   const [busy, setBusy] = useState(false);
 
@@ -105,6 +116,7 @@ function OrderCard({ order: o, onChange, fmt }) {
         <Badge status={o.status} />
       </div>
       <span className="hint">{o.user?.username ? `@${o.user.username}, ` : ''}{when(o.createdAt)}</span>
+      {showDate && o.forDate && <span className="for-date">📅 на {dayLabel(o.forDate, today).toLowerCase()}</span>}
       <ul className="order-lines">
         {o.items.map((i, k) => <li key={k}>{i.name}{i.qty > 1 ? ` ×${i.qty}` : ''} <span className="hint num">{fmt(i.price * i.qty)}</span></li>)}
       </ul>

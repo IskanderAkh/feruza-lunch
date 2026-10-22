@@ -35,6 +35,7 @@ export async function setupBot(bot) {
     { command: 'custom', description: 'Вне меню: /custom @user сумма описание' },
     { command: 'paid', description: 'Наличные: /paid @user [сумма]' },
     { command: 'undo', description: 'Отменить последнюю запись' },
+    { command: 'announce', description: 'Объявление всем: /announce текст' },
     { command: 'help', description: 'Справка' },
   ];
   for (const id of config.adminIds) {

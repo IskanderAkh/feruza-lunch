@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
-import { MeContext, makeFmt } from './context.js';
+import { MeContext, makeFmt, dayLabel } from './context.js';
 import { Loader } from './components.jsx';
 import Menu from './pages/Menu.jsx';
 import Checkout from './pages/Checkout.jsx';
@@ -49,7 +49,7 @@ export default function App() {
 
   let screen;
   if (tab === 'menu' && lastOrder) {
-    screen = <OrderSent order={lastOrder} onPay={() => go('pay')} onMenu={() => setLastOrder(null)} />;
+    screen = <OrderSent order={lastOrder} today={me.today} onPay={() => go('pay')} onMenu={() => setLastOrder(null)} />;
   } else if (tab === 'menu' && checkout) {
     screen = (
       <Checkout
@@ -82,11 +82,12 @@ export default function App() {
   );
 }
 
-function OrderSent({ order, onPay, onMenu }) {
+function OrderSent({ order, today, onPay, onMenu }) {
   return (
     <section className="sent">
       <div className="sent-mark" aria-hidden="true">✓</div>
       <h1>Заказ #{order.number} отправлен</h1>
+      {order.forDate !== today && <p className="sent-date">на {dayLabel(order.forDate, today).toLowerCase()}</p>}
       <p className="hint">Когда повар примет заказ, бот пришлёт сообщение.
         {order.customRequest ? ' Цену блюда не из меню она сообщит отдельно.' : ''}</p>
       <div className="stack">

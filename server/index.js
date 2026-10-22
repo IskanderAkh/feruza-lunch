@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { createBot, setupBot } from './bot/index.js';
 import { setApi } from './services/notify.js';
 import { ensureSeed } from './services/dishes.js';
+import { migrateOrderDates } from './services/orders.js';
 import { api } from './api/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,6 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 await mongoose.connect(config.mongoUri);
 console.log('MongoDB подключена');
 await ensureSeed();
+await migrateOrderDates();
 
 const bot = createBot();
 await bot.init();
