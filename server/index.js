@@ -56,6 +56,15 @@ app.use((err, _req, res, _next) => {
 
 app.listen(config.port, () => console.log(`Сервер: http://localhost:${config.port}`));
 
+// Render (free) засыпает через 15 минут без входящих запросов — пингуем себя через публичный адрес
+if (config.keepAliveMinutes > 0 && config.publicUrl) {
+  setInterval(() => {
+    fetch(`${config.publicUrl}/health`, { signal: AbortSignal.timeout(30_000) })
+      .catch((err) => console.error('Keep-alive пинг не удался:', err.message));
+  }, config.keepAliveMinutes * 60_000);
+  console.log(`Keep-alive: пинг ${config.publicUrl}/health каждые ${config.keepAliveMinutes} мин`);
+}
+
 if (config.usePolling) {
   await bot.api.deleteWebhook();
   bot.start({

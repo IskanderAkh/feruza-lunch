@@ -86,8 +86,10 @@ npx cloudflared tunnel --url http://localhost:3000
 3. Environment: `BOT_TOKEN`, `MONGODB_URI`, `ADMIN_IDS`, `PACK_PRICE`, `CURRENCY`, `TZ_OFFSET_HOURS`,
    `NODE_ENV=production`, `PUBLIC_URL=https://<имя>.onrender.com`.
 
-Бесплатный инстанс засыпает без трафика. Первое открытие меню после паузы займёт ~1 минуту.
-Чтобы этого не было, пингуйте `GET /health` каждые 10 минут (например, через cron-job.org) или возьмите платный тариф/VPS.
+Бесплатный инстанс засыпает через 15 минут без входящих запросов. Чтобы этого не было, сервер сам
+пингует `PUBLIC_URL/health` каждые 10 минут (`KEEP_ALIVE_MINUTES`, `0` — выключить).
+Самопинг не разбудит уже уснувший сервис, поэтому для надёжности можно дополнительно
+настроить внешний пинг `GET /health` через cron-job.org или UptimeRobot.
 
 ## В группе
 
