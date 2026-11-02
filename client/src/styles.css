@@ -270,3 +270,13 @@ h3 { font-size: 15px; font-weight: 650; margin: 0; }
 .fatal { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; }
 .loader { width: 28px; height: 28px; margin: 32px auto; border-radius: 50%; border: 3px solid var(--lapis-soft); border-top-color: var(--lapis-ink); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Поле выбора файла — прозрачный слой поверх области, а не display:none.
+   На iOS в Telegram скрытое поле после отмены галереи перестаёт открываться. */
+.upload, .file-btn { position: relative; overflow: hidden; }
+.file-overlay {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; font-size: 0; z-index: 2;
+}
+.fallback-note { text-align: center; }
+.fallback-note .link { display: inline; margin-left: 4px; }

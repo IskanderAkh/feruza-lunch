@@ -98,7 +98,8 @@ function DishForm({ dish, onSaved, onDeleted, onCancel }) {
       <label className="field"><span className="field-label">Цена</span>
         <input inputMode="numeric" className="num" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d ]/g, ''))} /></label>
       <label className="btn btn-soft btn-block file-btn">
-        <input type="file" accept="image/*" hidden onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+        <input type="file" accept="image/*" className="file-overlay"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setPhoto(f); }} />
         {photo ? `Фото: ${photo.name}` : dish?.image ? 'Заменить фото' : 'Добавить фото'}
       </label>
       <div className="actions">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useMe, when } from '../context.js';
 import { MainButton, ErrorNote } from '../components.jsx';
-import { haptic } from '../tg.js';
+import { haptic, showAlert, inTelegram, tg } from '../tg.js';
 
 export default function Pay() {
   const { me, fmt, refreshMe } = useMe();
@@ -40,10 +40,19 @@ export default function Pay() {
   };
 
   const digits = amount.replace(/\D/g, '');
-  const canSend = file && Number(digits) > 0;
 
+  // Кнопка всегда активна: на iOS неактивная MainButton выглядит так же, как активная,
+  // и клиент думает, что она сломана. Поэтому объясняем, чего не хватает.
   async function submit() {
-    if (!canSend || sending) return;
+    if (sending) return;
+    if (!file) {
+      haptic.error();
+      return showAlert('Сначала прикрепите скриншот перевода: нажмите «Прикрепить скриншот».');
+    }
+    if (!(Number(digits) > 0)) {
+      haptic.error();
+      return showAlert('Укажите, сколько вы перевели.');
+    }
     setSending(true);
     setError(null);
     const form = new FormData();
@@ -98,8 +107,13 @@ export default function Pay() {
             </label>
 
             <label className={`upload${file ? ' has-file' : ''}`}>
-              <input type="file" accept="image/*,application/pdf" hidden
-                onChange={(e) => { setFile(e.target.files?.[0] || null); setError(null); }} />
+              <input type="file" accept="image/*,application/pdf" className="file-overlay"
+                aria-label="Прикрепить скриншот оплаты"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = ''; // чтобы поле открывалось снова, даже с тем же файлом
+                  if (f) { setFile(f); setError(null); }
+                }} />
               {preview ? (
                 <img src={preview} alt="Скриншот оплаты" />
               ) : file ? (
@@ -132,7 +146,15 @@ export default function Pay() {
         </section>
       )}
 
-      <MainButton visible={!sent} text="Отправить оплату" disabled={!canSend} loading={sending} onClick={submit} />
+      {!sent && inTelegram && (
+        <p className="hint pad fallback-note">
+          Не открывается галерея? Закройте меню и отправьте скриншот прямо в чат с ботом, он примет его так же.
+          <button className="link" onClick={() => tg.close()}>Перейти в чат</button>
+        </p>
+      )}
+
+      <MainButton visible={!sent} text={file ? 'Отправить оплату' : 'Прикрепите скриншот'}
+        loading={sending} onClick={submit} />
     </div>
   );
 }
