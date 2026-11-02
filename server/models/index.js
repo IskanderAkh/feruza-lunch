@@ -39,6 +39,7 @@ const orderSchema = new Schema(
     customRequest: String, // «вне меню» — цену назначает повар
     customPrice: { type: Number, default: null },
     comment: String,
+    forDate: { type: String, index: true }, // на какой день заказ, «YYYY-MM-DD» по времени повара
     amount: { type: Number, default: 0 },
     status: { type: String, enum: ['new', 'accepted', 'cancelled'], default: 'new', index: true },
     source: { type: String, enum: ['app', 'admin'], default: 'app' },
@@ -74,6 +75,17 @@ const settingsSchema = new Schema({
   paymentDetails: { type: String, default: '' },
 });
 
+// Объявление повара: видно в Mini App, по желанию разослано всем в личку
+const announcementSchema = new Schema(
+  {
+    text: { type: String, required: true, trim: true },
+    active: { type: Boolean, default: true, index: true },
+    sentTo: { type: Number, default: 0 }, // скольким дошла рассылка
+    createdBy: Number,
+  },
+  { timestamps: true }
+);
+
 const counterSchema = new Schema({ _id: String, seq: Number });
 
 export const User = model('User', userSchema);
@@ -81,6 +93,7 @@ export const Dish = model('Dish', dishSchema);
 export const Order = model('Order', orderSchema);
 export const Payment = model('Payment', paymentSchema);
 export const Settings = model('Settings', settingsSchema);
+export const Announcement = model('Announcement', announcementSchema);
 const Counter = model('Counter', counterSchema);
 
 export async function nextSeq(name) {

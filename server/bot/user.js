@@ -3,7 +3,7 @@ import { config } from '../config.js';
 import { Order } from '../models/index.js';
 import { balance } from '../services/ledger.js';
 import { createPayment } from '../services/payments.js';
-import { fmt, parseAmount, UserError } from '../helpers.js';
+import { fmt, parseAmount, dayLabel, UserError } from '../helpers.js';
 
 export const user = new Composer();
 const pm = user.chatType('private');
@@ -17,7 +17,7 @@ async function balanceText(u) {
   let text = debt > 0 ? `К оплате: ${fmt(debt)}` : 'Долгов нет 👍';
   if (orders.length) {
     text += '\n\nПоследние заказы:\n' + orders
-      .map((o) => `• #${o.number}, ${o.createdAt.toLocaleDateString('ru-RU')} — ${fmt(o.amount)}`)
+      .map((o) => `• #${o.number}, ${o.forDate ? dayLabel(o.forDate) : o.createdAt.toLocaleDateString('ru-RU')} — ${fmt(o.amount)}`)
       .join('\n');
   }
   return text;

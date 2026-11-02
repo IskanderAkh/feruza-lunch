@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useMe } from '../context.js';
-import { MainButton, Stepper, Loader, ErrorNote, Empty } from '../components.jsx';
+import { MainButton, Stepper, Loader, ErrorNote, Empty, Announcements } from '../components.jsx';
 import { haptic } from '../tg.js';
 
 export default function Menu({ cart, setCart, onCheckout, goPay }) {
@@ -30,11 +30,12 @@ export default function Menu({ cart, setCart, onCheckout, goPay }) {
   return (
     <div className="page">
       <header className="page-head">
-        <h1>Сегодня в меню</h1>
+        <h1>Меню</h1>
         {me.debt > 0 && <button className="debt-pill" onClick={goPay}>Долг {fmt(me.debt)}</button>}
       </header>
 
-      {!me.ordersOpen && <div className="notice">Приём заказов закрыт. Повар откроет его, когда будет готова принять заказы.</div>}
+      <Announcements items={me.announcements} />
+      {!me.ordersOpen && <div className="notice">На сегодня заказы уже не принимаются, но можно заказать на завтра или другой день.</div>}
       <ErrorNote error={error} onRetry={load} />
       {!dishes && !error && <Loader />}
       {dishes && !dishes.length && <Empty title="Меню пока пустое">Повар ещё не добавила блюда на сегодня.</Empty>}
@@ -55,7 +56,7 @@ export default function Menu({ cart, setCart, onCheckout, goPay }) {
                   {qty ? (
                     <Stepper value={qty} onChange={(v) => setQty(d, v)} />
                   ) : (
-                    <button className="btn btn-soft btn-block" disabled={!me.ordersOpen}
+                    <button className="btn btn-soft btn-block"
                       onClick={() => { haptic.tap(); setQty(d, 1); }}>
                       Добавить
                     </button>
@@ -64,13 +65,11 @@ export default function Menu({ cart, setCart, onCheckout, goPay }) {
               </article>
             );
           })}
-          {me.ordersOpen && (
-            <button className="custom-tile" onClick={() => onCheckout(true)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></svg>
-              <strong>Хочу не из меню</strong>
-              <span>Опишите блюдо и порцию, цену назовёт повар</span>
-            </button>
-          )}
+          <button className="custom-tile" onClick={() => onCheckout(true)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></svg>
+            <strong>Хочу не из меню</strong>
+            <span>Опишите блюдо и порцию, цену назовёт повар</span>
+          </button>
         </div>
       )}
 

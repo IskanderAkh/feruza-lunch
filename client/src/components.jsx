@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { tg, inTelegram, haptic } from './tg.js';
+import { dayLabel } from './context.js';
 
 const LAPIS = '#1F4E9C';
 
@@ -96,6 +97,48 @@ const STATUS = {
 export function Badge({ status }) {
   const [text, tone] = STATUS[status] || [status, 'warn'];
   return <span className={`badge badge-${tone}`}>{text}</span>;
+}
+
+// Объявления повара вверху меню. Закрытые запоминаем в браузере.
+const HIDDEN_KEY = 'hiddenAnnouncements';
+const readHidden = () => {
+  try { return JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; } catch { return []; }
+};
+
+export function Announcements({ items }) {
+  const [hidden, setHidden] = useState(readHidden);
+  const visible = items.filter((a) => !hidden.includes(a.id));
+  if (!visible.length) return null;
+
+  const hide = (id) => {
+    // храним только актуальные id, чтобы список не рос бесконечно
+    const next = [...hidden, id].filter((h) => items.some((a) => a.id === h));
+    setHidden(next);
+    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(next)); } catch { /* приватный режим */ }
+  };
+
+  return visible.map((a) => (
+    <div key={a.id} className="announce" role="status">
+      <span className="announce-icon" aria-hidden="true">📢</span>
+      <p>{a.text}</p>
+      <button className="announce-close" aria-label="Скрыть объявление" onClick={() => hide(a.id)}>×</button>
+    </div>
+  ));
+}
+
+// Выбор дня заказа: горизонтальная лента
+export function DayPicker({ days, value, onChange, today, disabled = [], counts }) {
+  return (
+    <div className="days" role="radiogroup" aria-label="День">
+      {days.map((d) => (
+        <button key={d} role="radio" aria-checked={value === d} className={value === d ? 'active' : ''}
+          disabled={disabled.includes(d)} onClick={() => { haptic.tap(); onChange(d); }}>
+          {dayLabel(d, today)}
+          {counts?.[d] > 0 && <b className="num">{counts[d]}</b>}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function ErrorNote({ error, onRetry }) {

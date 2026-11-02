@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { createBot, setupBot } from './bot/index.js';
 import { setApi } from './services/notify.js';
 import { ensureSeed } from './services/dishes.js';
+import { migrateOrderDates } from './services/orders.js';
 import { api } from './api/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,6 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 await mongoose.connect(config.mongoUri);
 console.log('MongoDB подключена');
 await ensureSeed();
+await migrateOrderDates();
 
 const bot = createBot();
 await bot.init();
@@ -55,6 +57,15 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(config.port, () => console.log(`Сервер: http://localhost:${config.port}`));
+
+// Render (free) засыпает через 15 минут без входящих запросов — пингуем себя через публичный адрес
+if (config.keepAliveMinutes > 0 && config.publicUrl) {
+  setInterval(() => {
+    fetch(`${config.publicUrl}/health`, { signal: AbortSignal.timeout(30_000) })
+      .catch((err) => console.error('Keep-alive пинг не удался:', err.message));
+  }, config.keepAliveMinutes * 60_000);
+  console.log(`Keep-alive: пинг ${config.publicUrl}/health каждые ${config.keepAliveMinutes} мин`);
+}
 
 if (config.usePolling) {
   await bot.api.deleteWebhook();

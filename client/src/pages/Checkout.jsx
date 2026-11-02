@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { useMe } from '../context.js';
-import { MainButton, BackButton, Stepper, ErrorNote } from '../components.jsx';
+import { useMe, addDays, dayLabel } from '../context.js';
+import { MainButton, BackButton, Stepper, ErrorNote, DayPicker } from '../components.jsx';
 import { haptic } from '../tg.js';
 
 export default function Checkout({ cart, setCart, focusCustom, onBack, onDone }) {
-  const { fmt } = useMe();
+  const { me, fmt } = useMe();
+  const days = Array.from({ length: me.maxDaysAhead + 1 }, (_, i) => addDays(me.today, i));
+  const [forDate, setForDate] = useState(me.ordersOpen ? days[0] : days[1]);
   const [custom, setCustom] = useState('');
   const [comment, setComment] = useState('');
   const [sending, setSending] = useState(false);
@@ -36,6 +38,7 @@ export default function Checkout({ cart, setCart, focusCustom, onBack, onDone })
         items: lines.map((l) => ({ dishId: l.dish.id, qty: l.qty })),
         customRequest: custom,
         comment,
+        forDate,
       });
       haptic.ok();
       onDone(order);
@@ -67,6 +70,15 @@ export default function Checkout({ cart, setCart, focusCustom, onBack, onDone })
       )}
 
       <section className="card">
+        <div className="field">
+          <span className="field-label">На какой день</span>
+          <DayPicker days={days} value={forDate} onChange={setForDate} today={me.today}
+            disabled={me.ordersOpen ? [] : [me.today]} />
+          {!me.ordersOpen && <span className="hint">На сегодня заказы уже закрыты.</span>}
+        </div>
+      </section>
+
+      <section className="card">
         <label className="field">
           <span className="field-label">Не из меню</span>
           <textarea ref={customRef} rows={2} maxLength={300} value={custom} onChange={(e) => setCustom(e.target.value)}
@@ -86,7 +98,7 @@ export default function Checkout({ cart, setCart, focusCustom, onBack, onDone })
 
       <ErrorNote error={error} />
       <MainButton
-        text={total > 0 ? `Заказать — ${fmt(total)}` : 'Отправить заказ'}
+        text={`Заказать на ${dayLabel(forDate, me.today).toLowerCase()}${total > 0 ? ` — ${fmt(total)}` : ''}`}
         disabled={empty} loading={sending} onClick={submit}
       />
     </div>

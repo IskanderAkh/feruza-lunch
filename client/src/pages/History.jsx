@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { useMe, when } from '../context.js';
+import { useMe, when, dayLabel } from '../context.js';
 import { Loader, Empty, Badge, ErrorNote } from '../components.jsx';
 
 export default function History() {
-  const { fmt } = useMe();
+  const { me, fmt } = useMe();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const load = () => { setError(null); api.get('/my').then(setData).catch((e) => setError(e.message)); };
@@ -21,7 +21,7 @@ export default function History() {
         {data.orders.map((o) => (
           <li key={o.id} className="order">
             <div className="order-head">
-              <strong>Заказ #{o.number}</strong>
+              <strong>Заказ #{o.number}{o.forDate && <span className="for-date">на {dayLabel(o.forDate, me.today).toLowerCase()}</span>}</strong>
               <Badge status={o.status} />
             </div>
             <ul className="order-lines">

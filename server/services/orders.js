@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import { InlineKeyboard } from 'grammy';
 import { Dish, Order, nextSeq } from '../models/index.js';
-import { fmt, displayName, UserError } from '../helpers.js';
+import { config } from '../config.js';
+import { fmt, displayName, UserError, localDate, formatDay, dayLabel, MAX_DAYS_AHEAD } from '../helpers.js';
 import { tgApi, notifyUser, toAdmins, editAdminMessages } from './notify.js';
 import { balance } from './ledger.js';
 
@@ -17,10 +18,38 @@ export function orderLines(o) {
 
 const priceMissing = (o) => o.customRequest && o.customPrice == null;
 
+// Предзаказ — заказ не на тот день, когда его сделали
+const isPreorder = (o) => o.forDate && o.forDate !== localDate(0, o.createdAt ?? Date.now());
+const forText = (o) => (isPreorder(o) ? ` на ${dayLabel(o.forDate)}` : '');
+
+// Дата из Mini App. Пусто = сегодня.
+export function parseForDate(value) {
+  if (value == null || value === '') return localDate();
+  const date = String(value);
+  // 2026-02-31 Date «молча» превращает в 3 марта — сверяем обратно
+  const d = new Date(`${date}T00:00:00Z`);
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(d.getTime()) && d.toISOString().startsWith(date);
+  if (!valid) throw new UserError('Неверная дата заказа');
+  if (date < localDate()) throw new UserError('Нельзя заказать на прошедший день');
+  if (date > localDate(MAX_DAYS_AHEAD)) throw new UserError(`Заказать можно не больше чем на ${MAX_DAYS_AHEAD} дней вперёд`);
+  return date;
+}
+
+// Старые заказы были без даты — проставляем день создания
+export async function migrateOrderDates() {
+  const off = Math.round(config.tzOffset * 60);
+  const pad = (n) => String(n).padStart(2, '0');
+  const tz = `${off < 0 ? '-' : '+'}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+  await Order.updateMany({ forDate: null }, [
+    { $set: { forDate: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: tz } } } },
+  ]);
+}
+
 function adminText(o, user) {
   return [
     `Заказ #${o.number}: ${STATUS[o.status]}`,
     displayName(user),
+    ...(isPreorder(o) ? [`📅 Предзаказ на ${formatDay(o.forDate)}`] : []),
     '',
     ...orderLines(o),
     ...(o.comment ? ['', `💬 ${o.comment}`] : []),
@@ -51,7 +80,7 @@ async function getOrder(id) {
 }
 
 // Заказ из Mini App. Цены берутся только из базы, клиенту не доверяем.
-export async function createOrder(user, { items = [], customRequest = '', comment = '' }) {
+export async function createOrder(user, { items = [], customRequest = '', comment = '', forDate = localDate() }) {
   const wanted = (Array.isArray(items) ? items : []).filter(
     (i) => i && mongoose.isValidObjectId(i.dishId) && Number.isInteger(i.qty) && i.qty > 0 && i.qty <= 20
   );
@@ -69,6 +98,7 @@ export async function createOrder(user, { items = [], customRequest = '', commen
     }),
     customRequest: String(customRequest).trim().slice(0, 300) || undefined,
     comment: String(comment).trim().slice(0, 300) || undefined,
+    forDate,
     source: 'app',
   });
   if (!order.items.length && !order.customRequest) throw new UserError('Корзина пуста');
@@ -87,7 +117,7 @@ export async function createOrder(user, { items = [], customRequest = '', commen
 export async function createAdminOrder(user, { items = [], customRequest, customPrice = null }, adminId) {
   const order = new Order({
     user: user._id, items, customRequest, customPrice,
-    status: 'accepted', source: 'admin', createdBy: adminId,
+    status: 'accepted', source: 'admin', createdBy: adminId, forDate: localDate(),
     number: await nextSeq('order'),
   });
   await order.save();
@@ -103,7 +133,7 @@ export async function acceptOrder(id) {
   await o.save();
   const debt = await balance(o.user._id);
   await notifyUser(o.user,
-    `✅ Заказ #${o.number} принят!\n${orderLines(o).join('\n')}\n\nК оплате всего: ${fmt(debt)}` +
+    `✅ Заказ #${o.number}${forText(o)} принят!\n${orderLines(o).join('\n')}\n\nК оплате всего: ${fmt(debt)}` +
     (priceMissing(o) ? '\nЦену блюда вне меню повар сообщит отдельно.' : ''));
   await refreshAdmin(o);
   return o;
@@ -114,7 +144,7 @@ export async function cancelOrder(id) {
   if (o.status === 'cancelled') return o;
   o.status = 'cancelled';
   await o.save();
-  await notifyUser(o.user, `❌ Заказ #${o.number} отменён. Если это ошибка — напишите повару.`);
+  await notifyUser(o.user, `❌ Заказ #${o.number}${forText(o)} отменён. Если это ошибка — напишите повару.`);
   await refreshAdmin(o);
   return o;
 }

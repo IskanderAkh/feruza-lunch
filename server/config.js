@@ -19,5 +19,7 @@ export const config = {
   publicUrl,
   usePolling: !publicUrl || process.env.USE_POLLING === 'true',
   port: Number(process.env.PORT || 3000),
+  // Самопинг /health, чтобы бесплатный Render не усыплял сервис (0 = выключено)
+  keepAliveMinutes: Number(process.env.KEEP_ALIVE_MINUTES || (isProd && publicUrl ? 10 : 0)),
   devUserId: !isProd && process.env.DEV_USER_ID ? Number(process.env.DEV_USER_ID) : null,
 };

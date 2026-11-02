@@ -4,6 +4,7 @@ import { Order, Payment } from '../models/index.js';
 import { touchUser, findOrCreateByUsername, balance, debtors, remindDebtors } from '../services/ledger.js';
 import { createAdminOrder, acceptOrder, cancelOrder, setCustomPrice } from '../services/orders.js';
 import { reviewPayment, cashPayment } from '../services/payments.js';
+import { createAnnouncement } from '../services/announcements.js';
 import { fmt, parseAmount, displayName, replyLong, UserError } from '../helpers.js';
 
 export const isAdmin = (ctx) => config.adminIds.includes(ctx.from?.id);
@@ -17,6 +18,7 @@ const USAGE = {
     '/pack @user — один пакет\n/pack @user 2 — два пакета\n' +
     '/pack @ali @vali 2 @sami — сразу нескольким\nили ответом на сообщение: /pack',
   custom: 'Заказ вне меню:\n/custom @user 55000 шашлык\nили ответом на сообщение: /custom 55000 шашлык',
+  announce: 'Объявление всем (в меню и в личку):\n/announce Завтра обедов не будет',
   paid: 'Оплата наличными:\n/paid @user 40000\n/paid @user — закрыть весь долг\nили ответом на сообщение: /paid 40000',
 };
 
@@ -82,6 +84,14 @@ a.command('paid', async (ctx) => {
   await ctx.reply(`✅ ${displayName(user)} оплатил ${fmt(amount)}. Остаток: ${fmt(left)}`);
 });
 
+a.command('announce', async (ctx) => {
+  const text = (ctx.match || '').trim();
+  if (!text) return ctx.reply(USAGE.announce);
+  await ctx.reply('Рассылаю…');
+  const a = await createAnnouncement(text, { send: true, adminId: ctx.from.id });
+  await ctx.reply(`📢 Объявление опубликовано в меню и отправлено: ${a.sentTo}\nСкрыть можно в Mini App → Повар → Объявления.`);
+});
+
 a.command('undo', async (ctx) => {
   const last = await Order.findOne({ createdBy: ctx.from.id, source: 'admin', status: { $ne: 'cancelled' } })
     .sort({ createdAt: -1 }).populate('user');
@@ -112,15 +122,15 @@ a.command('remind', async (ctx) => {
 a.command('report', async (ctx) => {
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const date = (d) => d.toISOString().slice(0, 16).replace('T', ' ');
-  const rows = [['Дата', 'Тип', '№', 'Имя', 'Username', 'Состав', 'Сумма', 'Статус']];
+  const rows = [['Дата', 'Тип', '№', 'На дату', 'Имя', 'Username', 'Состав', 'Сумма', 'Статус']];
   const orderStatus = { new: 'новый', accepted: 'принят', cancelled: 'отменён' };
   for (const o of await Order.find().populate('user').sort({ createdAt: 1 })) {
     const what = [...o.items.map((i) => `${i.name} ×${i.qty}`), o.customRequest].filter(Boolean).join(', ');
-    rows.push([date(o.createdAt), 'Заказ', o.number, o.user?.name, o.user?.username, what, o.amount, orderStatus[o.status]]);
+    rows.push([date(o.createdAt), 'Заказ', o.number, o.forDate, o.user?.name, o.user?.username, what, o.amount, orderStatus[o.status]]);
   }
   const payStatus = { pending: 'ждёт проверки', confirmed: 'подтверждена', rejected: 'отклонена' };
   for (const p of await Payment.find().populate('user').sort({ createdAt: 1 })) {
-    rows.push([date(p.createdAt), p.method === 'cash' ? 'Оплата наличными' : 'Оплата', '', p.user?.name,
+    rows.push([date(p.createdAt), p.method === 'cash' ? 'Оплата наличными' : 'Оплата', '', '', p.user?.name,
       p.user?.username, '', p.amount, payStatus[p.status]]);
   }
   const csv = '\ufeff' + rows.map((r) => r.map(esc).join(';')).join('\r\n');
@@ -134,7 +144,7 @@ a.command('pay', async (ctx) => {
   await ctx.reply('Заказы и оплата теперь через бота 🙌\nНажмите кнопку, потом «Меню» внизу чата.', { reply_markup: kb });
 });
 
-a.command('help', (ctx) => ctx.reply([USAGE.pack, USAGE.custom, USAGE.paid,
+a.command('help', (ctx) => ctx.reply([USAGE.pack, USAGE.custom, USAGE.paid, USAGE.announce,
   '/undo — отменить последнюю запись\n/debts — должники\n/remind — напомнить всем\n' +
   '/report — выгрузка в Excel\n/pay — кнопка заказа для группы\n\nВсё остальное — в Mini App: кнопка «Меню».'].join('\n\n')));
 

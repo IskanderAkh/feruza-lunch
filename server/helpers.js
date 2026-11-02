@@ -23,11 +23,23 @@ export function parseAmount(text) {
 export const displayName = (u) =>
   u?.name ? `${u.name}${u.username ? ` (@${u.username})` : ''}` : `@${u?.username ?? '?'}`;
 
-// Начало текущих суток в часовом поясе повара
-export function startOfToday() {
-  const off = config.tzOffset * 3_600_000;
-  const local = Date.now() + off;
-  return new Date(local - (local % 86_400_000) - off);
+// На сколько дней вперёд можно заказать
+export const MAX_DAYS_AHEAD = 14;
+
+// Дата «YYYY-MM-DD» в часовом поясе повара, со сдвигом в днях
+export function localDate(addDays = 0, from = Date.now()) {
+  return new Date(new Date(from).getTime() + config.tzOffset * 3_600_000 + addDays * 86_400_000)
+    .toISOString().slice(0, 10);
+}
+
+// «пт, 24 окт.»
+export const formatDay = (date) =>
+  new Date(`${date}T00:00:00Z`).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+export function dayLabel(date) {
+  if (date === localDate()) return 'сегодня';
+  if (date === localDate(1)) return 'завтра';
+  return formatDay(date);
 }
 
 // Telegram ограничивает сообщение 4096 символами
